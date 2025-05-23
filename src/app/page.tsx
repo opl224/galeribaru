@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -8,6 +9,8 @@ import { PhotoUploadButton } from '@/components/photo-upload-button';
 import { PhotoGrid } from '@/components/photo-grid';
 import { useToast } from "@/hooks/use-toast";
 
+const LOCAL_STORAGE_KEY = 'photostream-photos';
+
 export default function PhotoStreamPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -15,15 +18,32 @@ export default function PhotoStreamPage() {
 
   // Load photos from local storage on initial mount
   useEffect(() => {
-    const storedPhotos = localStorage.getItem('photostream-photos');
+    const storedPhotos = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedPhotos) {
-      setPhotos(JSON.parse(storedPhotos));
+      try {
+        const parsedPhotos = JSON.parse(storedPhotos);
+        // Validate if the parsed data is an array
+        if (Array.isArray(parsedPhotos)) {
+          // Further validation could be added here to check structure of each photo object
+          setPhotos(parsedPhotos);
+        } else {
+          console.warn('Stored photos data is not an array, ignoring and clearing.');
+          localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
+        }
+      } catch (error) {
+        console.error('Failed to parse photos from localStorage:', error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear invalid data
+      }
     }
   }, []);
 
   // Save photos to local storage whenever photos state changes
   useEffect(() => {
-    localStorage.setItem('photostream-photos', JSON.stringify(photos));
+    // Ensure photos is always an array before stringifying
+    // This prevents saving non-array data if photos state somehow gets corrupted
+    if (Array.isArray(photos)) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(photos));
+    }
   }, [photos]);
 
   const readFileAsDataURL = (file: File): Promise<string> => {
